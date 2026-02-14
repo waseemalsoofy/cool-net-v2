@@ -36,29 +36,29 @@ const AdminDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
     refreshState();
   };
 
-  const availableCardsCount = (pkgId: string) => 
+  const availableCardsCount = (pkgId: string) =>
     dbState.cards.filter(c => c.packageId === pkgId && c.status === 'AVAILABLE').length;
 
   return (
     <div className="flex-1 flex flex-col bg-gray-50">
       <Navbar user={user} onLogout={onLogout} />
-      
+
       <div className="bg-gray-800 text-white p-6">
         <h2 className="text-2xl font-bold">لوحة تحكم المدير</h2>
         <div className="flex gap-4 mt-4 overflow-x-auto pb-2 scrollbar-hide">
-          <button 
+          <button
             onClick={() => setActiveTab('CARDS')}
             className={`px-6 py-2 rounded-full whitespace-nowrap transition ${activeTab === 'CARDS' ? 'bg-blue-600' : 'bg-gray-700'}`}
           >
             المخزون والكروت
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('DEPOSITS')}
             className={`px-6 py-2 rounded-full whitespace-nowrap transition ${activeTab === 'DEPOSITS' ? 'bg-blue-600' : 'bg-gray-700'}`}
           >
             طلبات الشحن ({dbState.transactions.filter(t => t.status === TransactionStatus.PENDING).length})
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('WHOLESALERS')}
             className={`px-6 py-2 rounded-full whitespace-nowrap transition ${activeTab === 'WHOLESALERS' ? 'bg-blue-600' : 'bg-gray-700'}`}
           >
@@ -99,7 +99,7 @@ const AdminDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                       <p className="text-xs text-gray-400">{t.paymentMethod} - {t.reference}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => handleApproveDeposit(t.id)}
                         className="bg-green-600 text-white px-6 py-2 rounded-xl font-bold text-sm"
                       >
@@ -130,7 +130,7 @@ const AdminDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                     <p className="text-xs text-gray-400">التاريخ: {new Date().toLocaleDateString('ar-YE')}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button 
+                    <button
                       onClick={() => handleApproveUser(u.id)}
                       className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold text-sm"
                     >
