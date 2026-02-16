@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { User, UserStatus } from '../types';
 import Navbar from '../components/Navbar';
 import { PACKAGES, WALLET_DISCOUNT } from '../constants';
-import { mockAuth } from '../services/mockData';
+import { api } from '../services/api';
 
 interface DashboardProps {
   user: User;
@@ -15,7 +15,7 @@ const WholesalerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [targetPhone, setTargetPhone] = useState('');
   const [selectedPkg, setSelectedPkg] = useState(PACKAGES[0].id);
 
-  const handleWholesaleBuy = () => {
+  const handleWholesaleBuy = async () => {
     if (user.status !== UserStatus.ACTIVE) {
       alert('حسابك مازال قيد المراجعة. لا يمكنك إجراء عمليات حالياً.');
       return;
@@ -27,11 +27,15 @@ const WholesalerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
     setLoading(true);
     try {
-      mockAuth.purchaseCard(user.id, selectedPkg, true, targetPhone);
-      alert('✔️ جاهز – تم الإرسال للعميل مباشرة من رقم الإدارة.');
-      setTargetPhone('');
+      const { order, error } = await api.buyCard(user.id, selectedPkg, true, targetPhone);
+      if (error) {
+        alert(error);
+      } else {
+        alert('✔️ جاهز – تم الإرسال للعميل مباشرة من رقم الإدارة.');
+        setTargetPhone('');
+      }
     } catch (e: any) {
-      alert(e.message);
+      alert('حدث خطأ أثناء الاتصال');
     } finally {
       setLoading(false);
     }
@@ -55,7 +59,7 @@ const WholesalerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   return (
     <div className="flex-1 flex flex-col bg-gray-50">
       <Navbar user={user} onLogout={onLogout} />
-      
+
       <div className="p-4 bg-indigo-700 text-white shadow-lg">
         <div className="flex justify-between items-center">
           <div>
@@ -96,11 +100,10 @@ const WholesalerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   <button
                     key={pkg.id}
                     onClick={() => setSelectedPkg(pkg.id)}
-                    className={`p-4 rounded-2xl border-2 transition text-right relative overflow-hidden ${
-                      selectedPkg === pkg.id 
-                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900' 
+                    className={`p-4 rounded-2xl border-2 transition text-right relative overflow-hidden ${selectedPkg === pkg.id
+                      ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
                       : 'border-gray-100 hover:border-indigo-200'
-                    }`}
+                      }`}
                   >
                     <p className="font-bold text-lg">{pkg.name}</p>
                     <p className="text-xs text-gray-500">جملة: {(pkg.wholesalePrice * (1 - WALLET_DISCOUNT)).toFixed(1)} ريال</p>

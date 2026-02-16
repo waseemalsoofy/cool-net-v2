@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { User } from '../types';
-import { mockAuth } from '../services/mockData';
+import { api } from '../services/api';
 
 interface LoginProps {
   onLogin: (user: User) => void;
@@ -13,13 +13,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToRegister }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const user = mockAuth.login(phone, password);
+    setLoading(true);
+    setError('');
+
+    const { user, error } = await api.login(phone, password);
+
     if (user) {
       onLogin(user);
     } else {
-      setError('رقم الهاتف أو كلمة المرور غير صحيحة');
+      setError(error || 'رقم الهاتف أو كلمة المرور غير صحيحة');
+      setLoading(false);
     }
   };
 
@@ -68,14 +75,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onGoToRegister }) => {
           <button
             type="submit"
             className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition transform active:scale-95 shadow-lg"
+            disabled={loading}
           >
-            دخول
+            {loading ? 'جاري الدخول...' : 'دخول'}
           </button>
         </form>
 
         <div className="mt-8 text-center">
           <p className="text-gray-600">ليس لديك حساب؟</p>
-          <button 
+          <button
             onClick={onGoToRegister}
             className="text-blue-600 font-bold hover:underline mt-1"
           >

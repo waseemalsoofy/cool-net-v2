@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole, UserStatus, TransactionStatus } from '../types';
 import Navbar from '../components/Navbar';
-import { mockAuth } from '../services/mockData';
+import { api } from '../services/api';
 import { PACKAGES } from '../constants';
 
 interface DashboardProps {
@@ -12,27 +12,29 @@ interface DashboardProps {
 
 const AdminDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'CARDS' | 'DEPOSITS' | 'WHOLESALERS'>('CARDS');
-  const [dbState, setDbState] = useState({
-    users: mockAuth.users,
-    cards: mockAuth.cards,
-    transactions: mockAuth.transactions
+  const [dbState, setDbState] = useState<{ users: User[], cards: any[], transactions: any[] }>({
+    users: [],
+    cards: [],
+    transactions: []
   });
 
   const refreshState = () => {
-    setDbState({
-      users: [...mockAuth.users],
-      cards: [...mockAuth.cards],
-      transactions: [...mockAuth.transactions]
+    api.getAdminData().then(data => {
+      setDbState(data);
     });
   };
 
-  const handleApproveDeposit = (id: string) => {
-    mockAuth.approveDeposit(id);
+  useEffect(() => {
+    refreshState();
+  }, []);
+
+  const handleApproveDeposit = async (id: string) => {
+    await api.approveDeposit(id);
     refreshState();
   };
 
-  const handleApproveUser = (id: string) => {
-    mockAuth.approveWholesaler(id);
+  const handleApproveUser = async (id: string) => {
+    await api.approveWholesaler(id);
     refreshState();
   };
 

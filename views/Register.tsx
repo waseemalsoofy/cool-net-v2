@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { UserRole } from '../types';
-import { mockAuth } from '../services/mockData';
+import { api } from '../services/api';
 
 interface RegisterProps {
   onBackToLogin: () => void;
@@ -25,12 +25,30 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
     setMessage('تم إرسال رمز التحقق إلى رقم هاتفك (التجريبي: 1234)');
   };
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp === '1234') {
-      mockAuth.register(formData);
-      alert('تم التسجيل بنجاح. ' + (formData.role === UserRole.WHOLESALER ? 'طلبك قيد المراجعة من قبل الإدارة.' : 'يمكنك الآن تسجيل الدخول.'));
-      onBackToLogin();
+      try {
+        const { user, error } = await api.register(
+          formData.name,
+          formData.phone,
+          formData.password,
+          formData.role
+        );
+
+        if (error) {
+          alert('فشل التسجيل: ' + error);
+          return;
+        }
+
+        if (user) {
+          alert('تم التسجيل بنجاح. ' + (formData.role === UserRole.WHOLESALER ? 'طلبك قيد المراجعة من قبل الإدارة.' : 'يمكنك الآن تسجيل الدخول.'));
+          onBackToLogin();
+        }
+      } catch (err) {
+        alert('حدث خطأ أثناء التسجيل');
+        console.error(err);
+      }
     } else {
       alert('رمز التحقق غير صحيح');
     }
@@ -40,7 +58,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
     <div className="flex-1 flex items-center justify-center p-6 bg-blue-600">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <h2 className="text-2xl font-bold text-center mb-6">إنشاء حساب جديد</h2>
-        
+
         {step === 1 ? (
           <form onSubmit={handleNext} className="space-y-4">
             <div>
@@ -49,7 +67,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
                 type="text"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200"
                 value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
               />
             </div>
@@ -59,7 +77,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
                 type="tel"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200"
                 value={formData.phone}
-                onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 required
               />
             </div>
@@ -69,7 +87,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
                 type="password"
                 className="w-full px-4 py-3 rounded-xl border border-gray-200"
                 value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 required
               />
             </div>
@@ -78,7 +96,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
               <select
                 className="w-full px-4 py-3 rounded-xl border border-gray-200"
                 value={formData.role}
-                onChange={(e) => setFormData({...formData, role: e.target.value as UserRole})}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
               >
                 <option value={UserRole.CUSTOMER}>عميل عادي</option>
                 <option value={UserRole.WHOLESALER}>تاجر جملة</option>
@@ -102,7 +120,7 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
           </form>
         )}
 
-        <button 
+        <button
           onClick={onBackToLogin}
           className="w-full text-center mt-6 text-sm text-gray-500 hover:text-blue-600"
         >
