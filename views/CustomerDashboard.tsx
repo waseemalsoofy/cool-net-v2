@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { User, UserRole, TransactionStatus } from '../types';
+import { User, UserRole, TransactionStatus, Package } from '../types';
 import Navbar from '../components/Navbar';
-import { PACKAGES, PAYMENT_METHODS, WALLET_DISCOUNT } from '../constants';
+import { PAYMENT_METHODS, WALLET_DISCOUNT } from '../constants';
 import { api } from '../services/api';
 
 interface DashboardProps {
@@ -14,9 +14,17 @@ const CustomerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState<'BUY' | 'WALLET' | 'HISTORY'>('BUY');
   const [loading, setLoading] = useState(false);
   const [balanceRequest, setBalanceRequest] = useState({ amount: '', method: PAYMENT_METHODS[0].id, reference: '' });
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
 
   React.useEffect(() => {
+    const loadPackages = async () => {
+      const { data } = await api.getPackages();
+      if (data) setPackages(data);
+    };
+    loadPackages();
+
     if (activeTab === 'HISTORY') {
       api.getTransactions(user.id).then(({ transactions }) => setTransactions(transactions));
     }
@@ -40,12 +48,13 @@ const CustomerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
 
   const handleBalanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await api.requestDeposit(user.id, Number(balanceRequest.amount), balanceRequest.method, balanceRequest.reference);
+    const { error } = await api.requestDeposit(user.id, Number(balanceRequest.amount), balanceRequest.method, balanceRequest.reference, receiptFile);
     if (error) {
-      alert('حدث خطأ أثناء الإرسال');
+      alert(error);
     } else {
       alert('تم إرسال طلب شحن الرصيد بنجاح، سيتم المراجعة من قبل الإدارة.');
       setBalanceRequest({ amount: '', method: PAYMENT_METHODS[0].id, reference: '' });
+      setReceiptFile(null);
     }
   };
 
@@ -73,7 +82,7 @@ const CustomerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
           <div className="space-y-6">
             <h3 className="text-lg font-bold text-gray-800">اختر باقة الإنترنت</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {PACKAGES.map(pkg => (
+              {packages.map(pkg => (
                 <div key={pkg.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 transition hover:shadow-md">
                   <div className="flex justify-between items-start mb-4">
                     <h4 className="text-xl font-bold text-gray-800">{pkg.name}</h4>
@@ -145,6 +154,15 @@ const CustomerDashboard: React.FC<DashboardProps> = ({ user, onLogout }) => {
                   value={balanceRequest.reference}
                   onChange={(e) => setBalanceRequest({ ...balanceRequest, reference: e.target.value })}
                   required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">صورة الإيصال (اختياري)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white"
+                  onChange={(e) => setReceiptFile(e.target.files ? e.target.files[0] : null)}
                 />
               </div>
               <button type="submit" className="w-full py-4 bg-blue-600 text-white rounded-xl font-bold text-lg shadow-lg">

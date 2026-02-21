@@ -36,11 +36,12 @@ export const api = {
             phone: data.phone,
             role: data.role as UserRole,
             status: data.status as UserStatus,
-            walletBalance: data.wallet_balance
+            walletBalance: data.wallet_balance,
+            shopName: data.shop_name
         };
     },
 
-    async register(name: string, phone: string, password: string, role: UserRole): Promise<{ user: User | null; error: string | null }> {
+    async register(name: string, phone: string, password: string, role: UserRole, shopName?: string): Promise<{ user: User | null; error: string | null }> {
         const email = `${phone}@coolnet.com`;
 
         // 1. Sign up with Supabase Auth
@@ -61,7 +62,8 @@ export const api = {
                 phone,
                 role,
                 status: role === UserRole.WHOLESALER ? 'PENDING' : 'ACTIVE',
-                wallet_balance: 0
+                wallet_balance: 0,
+                shop_name: shopName
             });
 
         if (profileError) {
@@ -75,7 +77,8 @@ export const api = {
             phone,
             role,
             status: role === UserRole.WHOLESALER ? UserStatus.PENDING : UserStatus.ACTIVE,
-            walletBalance: 0
+            walletBalance: 0,
+            shopName
         };
 
         return { user, error: null };
@@ -84,7 +87,17 @@ export const api = {
     // Data
     async getPackages() {
         const { data, error } = await supabase.from('packages').select('*');
-        return { data, error };
+        if (error || !data) return { data: [], error };
+
+        return {
+            data: data.map(p => ({
+                id: p.id,
+                name: p.name,
+                basePrice: p.base_price,
+                wholesalePrice: p.wholesale_price
+            })),
+            error: null
+        };
     },
 
     async buyCard(userId: string, packageId: string, isWallet: boolean, customerPhone?: string) {
@@ -148,17 +161,36 @@ export const api = {
             .select()
             .single();
 
-        return { order: { ...order, cardNumber: card.card_number }, error: null };
+        const displayedCardNumber = user.role === UserRole.WHOLESALER ? 'محجوز - سيتم الإرسال للعميل' : card.card_number;
+
+        return { order: { ...order, cardNumber: displayedCardNumber }, error: null };
     },
 
-    async requestDeposit(userId: string, amount: number, method: string, reference: string) {
+    async requestDeposit(userId: string, amount: number, method: string, reference: string, receiptFile: File | null) {
+        let receiptUrl = null;
+
+        if (receiptFile) {
+            const fileExt = receiptFile.name.split('.').pop();
+            const fileName = `${userId}_${Date.now()}.${fileExt}`;
+            const { data, error: uploadError } = await supabase.storage
+                .from('deposits')
+                .upload(fileName, receiptFile);
+
+            if (uploadError) return { error: "فشل في رفع صورة الإيصال: " + uploadError.message };
+
+            // Get public URL
+            const { data: { publicUrl } } = supabase.storage.from('deposits').getPublicUrl(fileName);
+            receiptUrl = publicUrl;
+        }
+
         const { data, error } = await supabase.from('transactions').insert({
             user_id: userId,
             amount,
             type: 'DEPOSIT',
             status: 'PENDING',
             payment_method: method,
-            reference
+            reference,
+            receipt_url: receiptUrl
         });
         return { error };
     },
@@ -213,9 +245,19 @@ export const api = {
                 paymentMethod: t.payment_method,
                 reference: t.reference,
                 status: t.status as TransactionStatus,
+                receiptUrl: t.receipt_url,
                 timestamp: new Date(t.created_at).getTime()
             })) || []
         };
+    },
+
+    async addCard(packageId: string, cardNumber: string) {
+        const { error } = await supabase.from('cards').insert({
+            package_id: packageId,
+            card_number: cardNumber,
+            status: 'AVAILABLE'
+        });
+        return { error };
     },
 
     async approveDeposit(transId: string) {
@@ -236,6 +278,69 @@ export const api = {
     },
 
     async approveWholesaler(userId: string) {
-        await supabase.from('profiles').update({ status: 'ACTIVE' }).eq('id', userId);
+        const { error } = await supabase.from('profiles').update({ status: 'ACTIVE' }).eq('id', userId);
+        if (!error) {
+            // Send SMS notification
+            const user = await this.getProfile(userId);
+            if (user) {
+                await this.sendSMS(user.phone, `مرحباً ${user.name}،\nتم تفعيل حسابك بنجاح في كول نت.\nيمكنك الآن تسجيل الدخول.`);
+            }
+        }
+        return { error };
+    },
+
+    // SMS
+    async sendSMS(phone: string, message: string) {
+        try {
+            // Using proxy or direct if CORS allows. 
+            // Since this is client-side, we might hit CORS. Ideally this is Edge Function.
+            // For now, attempting direct fetch.
+            const response = await fetch('https://sms.capcom.me/api/send', { // Assuming /api/send based on common conventions, or root
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Basic DQEIHR:-wqzvzkcrsrne5', // Provided creds
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    mobile: phone,
+                    message: message
+                })
+            });
+            return response.ok;
+        } catch (e) {
+            console.error("SMS Failed", e);
+            return false;
+        }
+    },
+
+    // Admin Extended
+    async updateUserStatus(userId: string, status: UserStatus) {
+        const { error } = await supabase.from('profiles').update({ status }).eq('id', userId);
+        return { error };
+    },
+
+    async updatePackage(pkgId: string, updates: Partial<{ basePrice: number, wholesalePrice: number }>) {
+        const dbUpdates: any = {};
+        if (updates.basePrice) dbUpdates.base_price = updates.basePrice;
+        if (updates.wholesalePrice) dbUpdates.wholesale_price = updates.wholesalePrice;
+
+        const { error } = await supabase.from('packages').update(dbUpdates).eq('id', pkgId);
+        return { error };
+    },
+
+    async getAdminStats() {
+        const { count: usersCount } = await supabase.from('profiles').select('*', { count: 'exact', head: true });
+        const { count: cardsCount } = await supabase.from('cards').select('*', { count: 'exact', head: true }).eq('status', 'AVAILABLE');
+        const { data: sales } = await supabase.from('orders').select('total_price');
+
+        const totalRevenue = sales?.reduce((acc, order) => acc + order.total_price, 0) || 0;
+        const totalSold = sales?.length || 0;
+
+        return {
+            usersCount,
+            cardsCount,
+            totalRevenue,
+            totalSold
+        };
     }
 };

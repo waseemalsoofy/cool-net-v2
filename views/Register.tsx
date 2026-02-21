@@ -13,7 +13,8 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
     name: '',
     phone: '',
     password: '',
-    role: UserRole.CUSTOMER
+    role: UserRole.CUSTOMER,
+    shopName: ''
   });
   const [otp, setOtp] = useState('');
   const [message, setMessage] = useState('');
@@ -33,7 +34,8 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
           formData.name,
           formData.phone,
           formData.password,
-          formData.role
+          formData.role,
+          formData.shopName
         );
 
         if (error) {
@@ -102,6 +104,20 @@ const Register: React.FC<RegisterProps> = ({ onBackToLogin }) => {
                 <option value={UserRole.WHOLESALER}>تاجر جملة</option>
               </select>
             </div>
+
+            {formData.role === UserRole.WHOLESALER && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">اسم المحل / النشاط التجاري</label>
+                <input
+                  type="text"
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200"
+                  value={formData.shopName}
+                  onChange={(e) => setFormData({ ...formData, shopName: e.target.value })}
+                  required
+                  placeholder="مثال: بقالة الأمانة"
+                />
+              </div>
+            )}
             <button type="submit" className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold">استمرار</button>
           </form>
         ) : (

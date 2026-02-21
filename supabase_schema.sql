@@ -90,3 +90,20 @@ INSERT INTO public.packages (id, name, base_price, wholesale_price, duration, sp
 ('pkg_500', 'فئة 500 ريال', 500, 450, '30 ساعة', '4Mbps', '2500MB'),
 ('pkg_1000', 'فئة 1000 ريال', 1000, 900, '70 ساعة', '6Mbps', '5000MB'),
 ('pkg_m', 'اشتراك شهري', 4000, 3500, '30 يوم', '8Mbps', '20GB');
+
+-- Storage Bucket for Deposits
+INSERT INTO storage.buckets (id, name, public) VALUES ('deposits', 'deposits', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Storage Policies
+CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING ( bucket_id = 'deposits' );
+CREATE POLICY "Auth Upload" ON storage.objects FOR INSERT WITH CHECK ( bucket_id = 'deposits' AND auth.role() = 'authenticated' );
+
+-- Fix: Admin RLS Policies
+CREATE POLICY "Admins can insert cards" ON public.cards FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN'));
+CREATE POLICY "Admins can update cards" ON public.cards FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN'));
+CREATE POLICY "Admins can delete cards" ON public.cards FOR DELETE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN'));
+
+CREATE POLICY "Admins can update packages" ON public.packages FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN'));
+
+CREATE POLICY "Admins can update users" ON public.profiles FOR UPDATE USING (EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'ADMIN'));

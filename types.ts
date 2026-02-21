@@ -29,6 +29,7 @@ export interface User {
   role: UserRole;
   status: UserStatus;
   walletBalance: number;
+  shopName?: string;
 }
 
 export interface Package {
@@ -64,5 +65,6 @@ export interface WalletTransaction {
   paymentMethod: string;
   reference: string;
   status: TransactionStatus;
+  receiptUrl?: string;
   timestamp: number;
 }
